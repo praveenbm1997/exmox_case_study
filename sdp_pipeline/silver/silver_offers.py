@@ -14,7 +14,7 @@ from pyspark.sql.types import DecimalType
     cluster_by=["offer_id"],
 )
 @dp.expect_or_drop("offer_id_not_null", "offer_id IS NOT NULL")
-@dp.expect_or_drop("payout_eur_valid", "payout_eur IS NOT NULL AND payout_eur >= 0")
+@dp.expect_or_drop("payout_eur_valid", "payout_eur IS NOT NULL AND payout_eur > 0")
 def silver_offers():
     raw = spark.read.table("exmox.bronze.bronze_offers")
     return (

@@ -21,6 +21,7 @@ JOB_CUTOFF_MIN = 15
 @dp.expect_or_drop("event_id_not_null", "event_id IS NOT NULL")
 @dp.expect_or_drop("user_id_not_null", "user_id IS NOT NULL")
 @dp.expect_or_drop("event_ts_not_null", "event_ts IS NOT NULL")
+@dp.expect_or_drop("ingest_ts_not_null", "ingest_ts IS NOT NULL")
 @dp.expect("event_name_valid", "event_name IN ('app_open','offer_view','offer_start','goal_reached','reward_paid')")
 def silver_events():
     raw = spark.read.table("exmox.bronze.bronze_events")
