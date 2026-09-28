@@ -249,7 +249,3 @@ An AI/BI dashboard "Exmox Funnel and Platform Analytics" is available in the wor
 - Country usage map
 - Conversion rate trend over time
 - Silver layer data quality metrics
-
-## Contact
-
-For questions about this submission, contact: praveen.b.madhava@gmail.com
