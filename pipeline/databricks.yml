@@ -1,0 +1,104 @@
+# Declarative Automation Bundle (DAB) for the Exmox legacy v1 pipeline.
+# Deploy:   databricks bundle deploy --target dev
+# Run CI:   databricks bundle run exmox_test --target dev
+# Run pipe: databricks bundle run exmox_pipeline --target dev
+
+bundle:
+  name: exmox
+
+variables:
+  notebook_base:
+    default: /Users/praveen.b.madhava@gmail.com/exmox/notebooks/pipeline
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+
+resources:
+  jobs:
+    # ── CI: run pytest before the pipeline ─────────────────────────────────
+    exmox_test:
+      name: "Exmox — Tests"
+      tasks:
+        - task_key: run_tests
+          description: Run pytest on legacy transforms
+          python_wheel_task:
+            package_name: pytest
+            entry_point: pytest
+            parameters:
+              - "-v"
+              - "--tb=short"
+              - "/Workspace/${var.notebook_base}/tests/test_transforms.py"
+          libraries:
+            - pypi: { package: pytest }
+          timeout_seconds: 600
+
+    # ── Production pipeline: bronze → silver → gold ──────────────────────
+    exmox_pipeline:
+      name: "Exmox Pipeline"
+      schedule:
+        quartz_cron_expression: "0 15 0 * * ?"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      email_notifications:
+        on_failure:
+          - praveen.b.madhava@gmail.com
+      tasks:
+        - task_key: bronze_ingestion
+          description: Bronze ingestion: Auto Loader + S3 sync
+          notebook_task:
+            notebook_path: ${var.notebook_base}/01_bronze_ingestion
+            source: WORKSPACE
+          timeout_seconds: 1200
+
+        - task_key: silver_transform
+          description: Silver transform with watermark-based incremental
+          depends_on:
+            - task_key: bronze_ingestion
+          notebook_task:
+            notebook_path: ${var.notebook_base}/02_silver_transform
+            source: WORKSPACE
+          timeout_seconds: 1200
+
+        - task_key: gold_aggregation
+          description: Gold aggregation with lookback window
+          depends_on:
+            - task_key: silver_transform
+          notebook_task:
+            notebook_path: ${var.notebook_base}/03_gold_aggregation
+            source: WORKSPACE
+          timeout_seconds: 600
+
+    # ── Full backfill: rebuild all silver + gold from scratch ─────────────
+    exmox_backfill:
+      name: "Exmox — Full Backfill"
+      tasks:
+        - task_key: bronze_ingestion
+          description: Bronze ingestion (full reload)
+          notebook_task:
+            notebook_path: ${var.notebook_base}/01_bronze_ingestion
+            source: WORKSPACE
+          timeout_seconds: 1200
+
+        - task_key: silver_transform
+          description: Silver full rebuild
+          depends_on:
+            - task_key: bronze_ingestion
+          notebook_task:
+            notebook_path: ${var.notebook_base}/02_silver_transform
+            source: WORKSPACE
+            base_parameters:
+              full_rebuild: "true"
+          timeout_seconds: 1800
+
+        - task_key: gold_aggregation
+          description: Gold full rebuild
+          depends_on:
+            - task_key: silver_transform
+          notebook_task:
+            notebook_path: ${var.notebook_base}/03_gold_aggregation
+            source: WORKSPACE
+          timeout_seconds: 600

@@ -1,0 +1,145 @@
+# Declarative Automation Bundle (DAB) for the Exmox data pipeline.
+# Deploy with: databricks bundle deploy --target dev
+# Validate with: databricks bundle validate --target dev
+#
+# CI/CD flow (GitHub Actions / Databricks Git Sync):
+#   1. PR opened  -> databricks bundle validate
+#   2. PR merged -> databricks bundle deploy --target dev  (staging)
+#   3. Tag cut   -> databricks bundle deploy --target prod (production)
+#
+# The pipeline job runs pytest first; if tests fail, subsequent tasks are skipped.
+
+bundle:
+  name: exmox_pipeline
+
+variables:
+  full_rebuild:
+    description: "Whether to ignore the watermark and reprocess all bronze data."
+    default: "false"
+  dq_scope:
+    description: "DQ scope: 'window' checks only the touched window; 'full' checks all history."
+    default: "window"
+  layout:
+    description: "Table layout: 'liquid' (liquid clustering) or 'partition' (Hive partition + Z-order)."
+    default: "liquid"
+
+resources:
+  jobs:
+    # ── Main pipeline: tests -> bronze-to-silver -> silver-to-gold ──
+    exmox_pipeline:
+      name: "Exmox Pipeline (DAB)"
+      description: >
+        Bronze to Silver to Gold pipeline with a pytest gate.
+        Tests run first; if any test fails, the pipeline does not execute.
+      tags:
+        environment: ${var.target}
+        project: exmox
+      tasks:
+        # Task 1: Run pytest — fails the job if tests don't pass
+        - task_key: run_tests
+          description: "Run pytest transformation tests"
+          python_wheel_task:
+            package_name: pytest
+            entry_point: pytest
+            parameters: ["-v", "--tb=short", "tests/test_transforms.py"]
+          libraries:
+            - pypi:
+                package: pytest
+        # Task 2: Bronze -> Silver (depends on tests passing)
+        - task_key: bronze_to_silver
+          depends_on:
+            - task_key: run_tests
+          notebook_task:
+            notebook_path: /Workspace/Users/praveen.b.madhava@gmail.com/exmox/notebooks/pipeline/01_bronze_to_silver
+            base_parameters:
+              full_rebuild: ${var.full_rebuild}
+              layout: ${var.layout}
+              dq_scope: ${var.dq_scope}
+              run_ingest: "true"
+              run_tests: "false"
+              optimize: "true"
+        # Task 3: Silver -> Gold (depends on bronze_to_silver)
+        - task_key: silver_to_gold
+          depends_on:
+            - task_key: bronze_to_silver
+          notebook_task:
+            notebook_path: /Workspace/Users/praveen.b.madhava@gmail.com/exmox/notebooks/pipeline/02_silver_to_gold
+            base_parameters:
+              full_rebuild: ${var.full_rebuild}
+      # Retry on transient failures
+      job_clusters:
+        - job_cluster_key: serverless_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: i3.xlarge
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+      # Daily at 00:15 UTC (matches JOB_CUTOFF_MINUTES)
+      schedule:
+        quartz_cron_expression: "0 15 0 * * ?"
+        timezone_id: UTC
+        pause_status: ${var.target == "prod" ? "UNPAUSED" : "PAUSED"}
+      max_concurrent_runs: 1
+      email_notifications:
+        on_failure:
+          - praveen.b.madhava@gmail.com
+
+    # ── Full backfill job (manual trigger only) ──
+    exmox_backfill:
+      name: "Exmox Full Backfill (DAB)"
+      description: >
+        Full recompute of silver and gold layers. Trigger manually when
+        transformation logic changes and existing rows need reprocessing.
+      tags:
+        environment: ${var.target}
+        project: exmox
+        type: backfill
+      tasks:
+        - task_key: bronze_to_silver
+          notebook_task:
+            notebook_path: /Workspace/Users/praveen.b.madhava@gmail.com/exmox/notebooks/pipeline/01_bronze_to_silver
+            base_parameters:
+              full_rebuild: "true"
+              layout: ${var.layout}
+              dq_scope: "full"
+              run_ingest: "true"
+              run_tests: "true"
+              optimize: "true"
+        - task_key: silver_to_gold
+          depends_on:
+            - task_key: bronze_to_silver
+          notebook_task:
+            notebook_path: /Workspace/Users/praveen.b.madhava@gmail.com/exmox/notebooks/pipeline/02_silver_to_gold
+            base_parameters:
+              full_rebuild: "true"
+      job_clusters:
+        - job_cluster_key: serverless_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: i3.xlarge
+            autoscale:
+              min_workers: 1
+              max_workers: 8
+      max_concurrent_runs: 1
+      email_notifications:
+        on_failure:
+          - praveen.b.madhava@gmail.com
+
+# ── Environments ─────────────────────────────────────────────────────────────
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      full_rebuild: "false"
+      dq_scope: "window"
+      layout: "liquid"
+
+  prod:
+    mode: production
+    variables:
+      full_rebuild: "false"
+      dq_scope: "window"
+      layout: "liquid"
