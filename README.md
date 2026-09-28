@@ -112,8 +112,8 @@ Now choose either option below — notebook pipeline or SDP pipeline.
 
 ### Or run via Lakeflow Job
 
-- "Exmox Bronze to Silver to Gold Pipeline" (Job ID: 518342916204664)
-- "Exmox Pipeline main" (Job ID: 786513622011200) — refined version with daily schedule at 00:15 UTC
+- "Exmox Bronze to Silver to Gold Pipeline" — initial version
+- "Exmox Pipeline main" — refined version with daily schedule at 00:15 UTC
 
 ### Run the tests
 

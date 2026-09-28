@@ -84,13 +84,13 @@ The initial implementation used three Databricks notebooks orchestrated by a Lak
 - `02_silver_transform.ipynb` — Watermark-based incremental MERGE, dedup, DQ rules, rejects
 - `03_gold_aggregation.ipynb` — Daily country/platform aggregation with MERGE
 
-Job: "Exmox Bronze → Silver → Gold Pipeline" (ID: 518342916204664), daily trigger. Tagged "With notebooks".
+Job: "Exmox Bronze → Silver to Gold Pipeline", daily trigger. Tagged "With notebooks".
 
 ### 2. Notebook-Based Pipeline — Refined Job
 
 After the initial job was validated, a second notebook-based job was created with the same three notebooks, with per-task timeouts and a fixed daily cron schedule. It added alerts, tests, column-level data validations, and governance.
 
-Job: "Exmox Pipeline main" (ID: 786513622011200), scheduled daily at 00:15 UTC. Tagged "With notebooks: main". Git source: `https://github.com/praveenbm1997/exmox_case_study` (branch: main).
+Job: "Exmox Pipeline main", scheduled daily at 00:15 UTC. Tagged "With notebooks: main". Git source: `https://github.com/praveenbm1997/exmox_case_study` (branch: main).
 
 Both notebook jobs orchestrate the identical three notebooks from `/exmox/notebooks/pipeline/` and produce the same results.
 
@@ -422,8 +422,8 @@ After data exploration was complete and I understood the data and entity relatio
 - Asked AI for gold aggregation by date/country/platform
 - Asked AI for DQ alert with email notification, backfill notebook, governance notebook
 - Asked AI for pytest suite (17 tests) for transformation functions
-- Created initial job "Exmox Bronze → Silver → Gold Pipeline" (ID: 518342916204664) to orchestrate the three notebooks
-- Refined into second job "Exmox Pipeline main" (ID: 786513622011200) with Git source integration and daily cron schedule
+- Created initial job "Exmox Bronze → Silver to Gold Pipeline" to orchestrate the three notebooks
+- Refined into second job "Exmox Pipeline main" with Git source integration and daily cron schedule
 
 **Phase 2 — SDP Migration (built with AI)**:
 - Asked Databricks Assistant to read the existing notebooks and migrate to Spark Declarative Pipelines
