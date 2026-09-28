@@ -4,9 +4,7 @@ This repository contains two implementations of a bronze-to-gold ETL pipeline fo
 
 ## Prerequisites
 
-- A Databricks workspace (AWS) with Unity Catalog enabled
-- Serverless compute (CPU) — no custom cluster required
-- Permissions to create catalogs, schemas, and volumes
+- A Databricks workspace with Unity Catalog enabled
 - Four CSV files: `installs.csv`, `events.csv`, `offers.csv`, `user_profile.csv`
 
 ## Repository Structure
