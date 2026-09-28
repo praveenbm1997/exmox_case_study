@@ -59,25 +59,29 @@ Git URL: https://github.com/praveenbm1997/exmox_case_study
 Branch:   main
 ```
 
-### 2. Create the catalog, schemas, and volume
+### 2. Run the setup notebook
 
-Run the following SQL in a SQL editor or notebook:
+Open and run `exploration/setup` — this creates the catalog, schemas, and volumes for you:
 
-```sql
-CREATE CATALOG IF NOT EXISTS exmox;
-USE CATALOG exmox;
+- Catalog: `exmox`
+- Schemas: `exmox.bronze`, `exmox.silver`, `exmox.gold`
+- Volumes: `exmox.bronze.landing`, `exmox.bronze._checkpoints`
 
-CREATE SCHEMA IF NOT EXISTS exmox.bronze;
-CREATE SCHEMA IF NOT EXISTS exmox.silver;
-CREATE SCHEMA IF NOT EXISTS exmox.gold;
+### 3. Review the shared config
 
-CREATE VOLUME IF NOT EXISTS exmox.bronze.landing;
-CREATE VOLUME IF NOT EXISTS exmox.bronze._checkpoints;
-```
+Open `exploration/00_common` — this defines all paths, table names, DQ rules, and Spark settings used across the pipeline. Key defaults:
 
-### 3. Upload the CSV files
+- Landing path: `/Volumes/exmox/bronze/landing`
+- Checkpoints: `/Volumes/exmox/bronze/_checkpoints`
+- Lookback days: 6
+- Job cutoff: 00:15 UTC
+- Funnel steps: `app_open`, `offer_view`, `offer_start`, `goal_reached`, `reward_paid`
 
-Upload the four CSV files into the UC volume so Auto Loader can pick them up:
+No changes needed unless your volume path differs.
+
+### 4. Upload the CSV files
+
+Place the four CSV files into the landing volume subfolders so Auto Loader can pick them up:
 
 ```
 /Volumes/exmox/bronze/landing/events/events.csv
@@ -86,7 +90,7 @@ Upload the four CSV files into the UC volume so Auto Loader can pick them up:
 /Volumes/exmox/bronze/landing/user_profile/user_profile.csv
 ```
 
-You can upload via the Databricks UI (Catalog > exmox > bronze > landing volume > Upload), or via the CLI:
+Upload via the Databricks UI (Catalog > exmox > bronze > landing volume > Upload) or via CLI:
 
 ```bash
 databricks fs cp events.csv /Volumes/exmox/bronze/landing/events/
@@ -94,6 +98,10 @@ databricks fs cp installs.csv /Volumes/exmox/bronze/landing/installs/
 databricks fs cp offers.csv /Volumes/exmox/bronze/landing/offers/
 databricks fs cp user_profile.csv /Volumes/exmox/bronze/landing/user_profile/
 ```
+
+### 5. Run the pipeline
+
+Now choose either option below — notebook pipeline or SDP pipeline.
 
 ## Option A: Run the Notebook Pipeline
 
