@@ -59,7 +59,7 @@ def clean_installs(raw: DataFrame):
          .withColumn("install_ts", F.to_timestamp(F.trim("install_ts")))
          .withColumn("country", F.upper(F.trim("country")))
          .withColumn("device_model", F.trim("device_model"))
-         .withColumn("platform", F.when(F.lower(F.col("device_model")).contains("iphone"), F.lit("ios")).otherwise(F.lit("android")))
+         .withColumn("platform", F.when(F.lower(F.col("device_model")).rlike("iphone|ipad|ipod"), F.lit("ios")).otherwise(F.lit("android")))
          .withColumn("media_source", F.lower(F.trim("media_source")))
          .withColumn("campaign_id", F.nullif(F.trim("campaign_id"), F.lit(""))))
     bad_rows = i.filter(
