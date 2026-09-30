@@ -10,29 +10,29 @@ def _check(tbl, name, expr):
     except Exception as e:
         if "already exists" not in str(e).lower(): print(f"  ⚠ CHECK {name}: {e}")
 
-if spark.catalog.tableExists("exmox.silver.nb_offers"):
-    _not_null("exmox.silver.nb_offers", "offer_id")
-    _not_null("exmox.silver.nb_offers", "payout_eur")
-    _check(   "exmox.silver.nb_offers", "chk_offers_payout_eur",  "payout_eur >= 0")
+if spark.catalog.tableExists("exmox.silver.silver_offers"):
+    _not_null("exmox.silver.silver_offers", "offer_id")
+    _not_null("exmox.silver.silver_offers", "payout_eur")
+    _check(   "exmox.silver.silver_offers", "chk_offers_payout_eur",  "payout_eur >= 0")
 
-if spark.catalog.tableExists("exmox.silver.nb_installs"):
-    _not_null("exmox.silver.nb_installs", "user_id")
-    _not_null("exmox.silver.nb_installs", "install_ts")
-    _not_null("exmox.silver.nb_installs", "install_date")
-    _not_null("exmox.silver.nb_installs", "platform")
-    _not_null("exmox.silver.nb_installs", "country")
-    _check(   "exmox.silver.nb_installs", "chk_installs_platform", "platform IN ('android','ios')")
-    _check(   "exmox.silver.nb_installs", "chk_installs_country",  "LENGTH(country) = 2")
+if spark.catalog.tableExists("exmox.silver.silver_installs"):
+    _not_null("exmox.silver.silver_installs", "user_id")
+    _not_null("exmox.silver.silver_installs", "install_ts")
+    _not_null("exmox.silver.silver_installs", "install_date")
+    _not_null("exmox.silver.silver_installs", "platform")
+    _not_null("exmox.silver.silver_installs", "country")
+    _check(   "exmox.silver.silver_installs", "chk_installs_platform", "platform IN ('android','ios')")
+    _check(   "exmox.silver.silver_installs", "chk_installs_country",  "LENGTH(country) = 2")
 
-if spark.catalog.tableExists("exmox.silver.nb_user_profile"):
-    _not_null("exmox.silver.nb_user_profile", "user_id")
+if spark.catalog.tableExists("exmox.silver.silver_user_profile"):
+    _not_null("exmox.silver.silver_user_profile", "user_id")
 
-if spark.catalog.tableExists("exmox.silver.nb_events"):
-    _not_null("exmox.silver.nb_events", "event_id")
-    _not_null("exmox.silver.nb_events", "user_id")
-    _not_null("exmox.silver.nb_events", "event_ts")
-    _not_null("exmox.silver.nb_events", "event_date")
-    _check(   "exmox.silver.nb_events", "chk_events_name",
+if spark.catalog.tableExists("exmox.silver.silver_events"):
+    _not_null("exmox.silver.silver_events", "event_id")
+    _not_null("exmox.silver.silver_events", "user_id")
+    _not_null("exmox.silver.silver_events", "event_ts")
+    _not_null("exmox.silver.silver_events", "event_date")
+    _check(   "exmox.silver.silver_events", "chk_events_name",
               "event_name IN ('app_open','offer_view','offer_start','goal_reached','reward_paid')")
 
 # ── Primary keys (informational — used by query optimizer) ──────────────
@@ -46,16 +46,16 @@ def _fk(tbl, name, col, ref_tbl, ref_col):
     except Exception as e:
         if "already exists" not in str(e).lower(): print(f"  ⚠ FK {name}: {e}")
 
-if spark.catalog.tableExists("exmox.silver.nb_offers"):
-    _pk("exmox.silver.nb_offers",       "pk_silver_offers",       "offer_id")
-if spark.catalog.tableExists("exmox.silver.nb_installs"):
-    _pk("exmox.silver.nb_installs",     "pk_silver_installs",     "user_id")
-if spark.catalog.tableExists("exmox.silver.nb_user_profile"):
-    _pk("exmox.silver.nb_user_profile", "pk_silver_user_profile", "user_id")
-if spark.catalog.tableExists("exmox.silver.nb_events"):
-    _pk("exmox.silver.nb_events",       "pk_silver_events",       "event_id")
-    _fk("exmox.silver.nb_events", "fk_events_user_id",  "user_id",  "exmox.silver.nb_installs", "user_id")
-    _fk("exmox.silver.nb_events", "fk_events_offer_id", "offer_id", "exmox.silver.nb_offers",   "offer_id")
+if spark.catalog.tableExists("exmox.silver.silver_offers"):
+    _pk("exmox.silver.silver_offers",       "pk_silver_offers",       "offer_id")
+if spark.catalog.tableExists("exmox.silver.silver_installs"):
+    _pk("exmox.silver.silver_installs",     "pk_silver_installs",     "user_id")
+if spark.catalog.tableExists("exmox.silver.silver_user_profile"):
+    _pk("exmox.silver.silver_user_profile", "pk_silver_user_profile", "user_id")
+if spark.catalog.tableExists("exmox.silver.silver_events"):
+    _pk("exmox.silver.silver_events",       "pk_silver_events",       "event_id")
+    _fk("exmox.silver.silver_events", "fk_events_user_id",  "user_id",  "exmox.silver.silver_installs", "user_id")
+    _fk("exmox.silver.silver_events", "fk_events_offer_id", "offer_id", "exmox.silver.silver_offers",   "offer_id")
 
 print("── Silver constraints applied ──", flush=True)
 
@@ -89,19 +89,19 @@ from delta.tables import DeltaTable
 STEPS = ("app_open", "offer_view", "offer_start", "goal_reached", "reward_paid")
 JOB_CUTOFF_MIN = 15
 
-spark.sql("CREATE TABLE IF NOT EXISTS exmox.silver.nb_watermark (table_name STRING, max_ingested_at TIMESTAMP, updated_at TIMESTAMP)")
+spark.sql("CREATE TABLE IF NOT EXISTS exmox.silver.silver_watermark (table_name STRING, max_ingested_at TIMESTAMP, updated_at TIMESTAMP)")
 
 def get_watermark(bronze_table):
     """Get latest processed timestamp for a bronze table from the watermark table."""
     try:
-        rows = spark.sql(f"SELECT max_ingested_at FROM exmox.silver.nb_watermark WHERE table_name = '{bronze_table}'").collect()
+        rows = spark.sql(f"SELECT max_ingested_at FROM exmox.silver.silver_watermark WHERE table_name = '{bronze_table}'").collect()
         return rows[0]["max_ingested_at"] if rows else None
     except:
         return None
 
 def update_watermark(bronze_table):
     max_ts = spark.read.table(bronze_table).agg(F.max("_ingested_at").cast("timestamp").alias("max_ts")).collect()[0]["max_ts"]
-    spark.sql(f"MERGE INTO exmox.silver.nb_watermark AS t USING (SELECT '{bronze_table}' AS table_name, '{max_ts}' AS max_ingested_at, current_timestamp() AS updated_at) AS s ON t.table_name = s.table_name WHEN MATCHED THEN UPDATE SET max_ingested_at = s.max_ingested_at, updated_at = s.updated_at WHEN NOT MATCHED THEN INSERT *")
+    spark.sql(f"MERGE INTO exmox.silver.silver_watermark AS t USING (SELECT '{bronze_table}' AS table_name, '{max_ts}' AS max_ingested_at, current_timestamp() AS updated_at) AS s ON t.table_name = s.table_name WHEN MATCHED THEN UPDATE SET max_ingested_at = s.max_ingested_at, updated_at = s.updated_at WHEN NOT MATCHED THEN INSERT *")
 
 def merge_silver(df, silver_table, key_col, update_condition=None, insert_only=False):
     """MERGE into silver Delta table by primary key.
@@ -139,10 +139,10 @@ print("── Silver functions ready ──", flush=True)
 # DBTITLE 1,Silver — Offers
 # ── Silver Offers — dedup by offer_id (latest wins) ───────────────────────
 # Watermark fetched fresh here so this cell is safe to re-run independently.
-wm = get_watermark("exmox.bronze.nb_offers")
+wm = get_watermark("exmox.bronze.bronze_offers")
 print(f"  watermark [offers]: {wm}", flush=True)
 
-raw = spark.read.table("exmox.bronze.nb_offers")
+raw = spark.read.table("exmox.bronze.bronze_offers")
 if wm:
     raw = raw.filter(F.col("_ingested_at").cast("timestamp") > F.lit(wm))
 o = (raw.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in raw.columns])
@@ -156,24 +156,20 @@ silver_offers = (o.subtract(bad)
     .filter("_rn = 1").drop("_rn")
     .withColumn("_loaded_at", F.current_timestamp())
     .coalesce(1))
-try:
-    if not silver_offers.isEmpty():
-        validate_before_merge(silver_offers, "exmox.silver.nb_offers", "offer_id")
-        merge_silver(silver_offers, "exmox.silver.nb_offers", "offer_id")
-        print("✓ silver_offers (MERGE)", flush=True)
-    else:
-        print("[INFO] silver_offers: No new data found — skipping MERGE.", flush=True)
-    update_watermark("exmox.bronze.nb_offers")
-except Exception as _e:
-    print(f"[ERROR] silver_offers failed: {_e}", flush=True)
-    raise
+if not silver_offers.isEmpty():
+    validate_before_merge(silver_offers, "exmox.silver.silver_offers", "offer_id")
+    merge_silver(silver_offers, "exmox.silver.silver_offers", "offer_id")
+    print("✓ silver_offers (MERGE)", flush=True)
+else:
+    print("✓ silver_offers (no new data)", flush=True)
+update_watermark("exmox.bronze.bronze_offers")
 
 # COMMAND ----------
 
 # DBTITLE 1,Silver — Installs
 # ── Silver Installs — full recompute via DELETE+INSERT (dedup by user_id, first install wins)
 # Full recompute from ALL bronze data ensures platform is always derived from device_model.
-raw = spark.read.table("exmox.bronze.nb_installs")
+raw = spark.read.table("exmox.bronze.bronze_installs")
 i = (raw.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in raw.columns])
     .withColumn("user_id", F.trim("user_id")).withColumn("install_ts", F.to_timestamp(F.trim("install_ts")))
     .withColumn("country", F.upper(F.trim("country"))).withColumn("device_model", F.trim("device_model"))
@@ -188,29 +184,24 @@ silver_installs = (i.subtract(bad)
     .filter("_rn = 1").drop("_rn")
     .withColumn("install_date", F.to_date("install_ts")).withColumn("_loaded_at", F.current_timestamp())
     .repartition(4))
-try:
-    if not silver_installs.isEmpty():
-        validate_before_merge(silver_installs, "exmox.silver.nb_installs", "user_id")
-        _cnt = silver_installs.count()
-        if spark.catalog.tableExists("exmox.silver.nb_installs"):
-            spark.sql("DELETE FROM exmox.silver.nb_installs")
-        silver_installs.write.format("delta").mode("append").saveAsTable("exmox.silver.nb_installs")
-        print(f"✓ silver_installs (DELETE+INSERT: {_cnt:,} rows)", flush=True)
-    else:
-        print("[INFO] silver_installs: No new data found — skipping write.", flush=True)
-    update_watermark("exmox.bronze.nb_installs")
-except Exception as _e:
-    print(f"[ERROR] silver_installs failed: {_e}", flush=True)
-    raise
+if not silver_installs.isEmpty():
+    validate_before_merge(silver_installs, "exmox.silver.silver_installs", "user_id")
+    _cnt = silver_installs.count()
+    spark.sql("DELETE FROM exmox.silver.silver_installs")
+    silver_installs.write.format("delta").mode("append").saveAsTable("exmox.silver.silver_installs")
+    print(f"✓ silver_installs (DELETE+INSERT: {_cnt:,} rows)", flush=True)
+else:
+    print("✓ silver_installs (no data)", flush=True)
+update_watermark("exmox.bronze.bronze_installs")
 
 # COMMAND ----------
 
 # DBTITLE 1,Silver — User Profile
 # ── Silver User Profile — dedup by user_id (latest wins) ─────────────────
-wm = get_watermark("exmox.bronze.nb_user_profile")
+wm = get_watermark("exmox.bronze.bronze_user_profile")
 print(f"  watermark [user_profile]: {wm}", flush=True)
 
-raw = spark.read.table("exmox.bronze.nb_user_profile")
+raw = spark.read.table("exmox.bronze.bronze_user_profile")
 if wm:
     raw = raw.filter(F.col("_ingested_at").cast("timestamp") > F.lit(wm))
 silver_user_profile = (raw.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in raw.columns])
@@ -220,27 +211,23 @@ silver_user_profile = (raw.select([F.col(c).cast("string").alias(c) if not c.sta
     .withColumn("_rn", F.row_number().over(W.partitionBy("user_id").orderBy(F.desc("_ingested_at"))))
     .filter("_rn = 1").drop("_rn").withColumn("_loaded_at", F.current_timestamp())
     .repartition(4))
-try:
-    if not silver_user_profile.isEmpty():
-        validate_before_merge(silver_user_profile, "exmox.silver.nb_user_profile", "user_id")
-        merge_silver(silver_user_profile, "exmox.silver.nb_user_profile", "user_id")
-        print("✓ silver_user_profile (MERGE)", flush=True)
-    else:
-        print("[INFO] silver_user_profile: No new data found — skipping MERGE.", flush=True)
-    update_watermark("exmox.bronze.nb_user_profile")
-except Exception as _e:
-    print(f"[ERROR] silver_user_profile failed: {_e}", flush=True)
-    raise
+if not silver_user_profile.isEmpty():
+    validate_before_merge(silver_user_profile, "exmox.silver.silver_user_profile", "user_id")
+    merge_silver(silver_user_profile, "exmox.silver.silver_user_profile", "user_id")
+    print("✓ silver_user_profile (MERGE)", flush=True)
+else:
+    print("✓ silver_user_profile (no new data)", flush=True)
+update_watermark("exmox.bronze.bronze_user_profile")
 
 # COMMAND ----------
 
 # DBTITLE 1,Silver — Events
 # ── Silver Events — dedup by event_id (first arrival, insert-only) ──────────
 # Depends on silver_offers + silver_installs already being up to date.
-wm = get_watermark("exmox.bronze.nb_events")
+wm = get_watermark("exmox.bronze.bronze_events")
 print(f"  watermark [events]: {wm}", flush=True)
 
-raw = spark.read.table("exmox.bronze.nb_events")
+raw = spark.read.table("exmox.bronze.bronze_events")
 if wm:
     raw = raw.filter(F.col("_ingested_at").cast("timestamp") > F.lit(wm))
 e = (raw.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in raw.columns])
@@ -253,10 +240,10 @@ good = (e.filter(F.col("event_id").isNotNull() & F.col("user_id").isNotNull() & 
     .withColumn("event_date", F.to_date("event_ts"))
     .withColumn("lag_hours", (F.unix_timestamp("ingest_ts") - F.unix_timestamp("event_ts")) / 3600.0)
     .withColumn("is_late", F.col("ingest_ts") > (F.to_timestamp(F.date_add(F.to_date("event_ts"), 1)) + F.expr(f"INTERVAL {JOB_CUTOFF_MIN} MINUTES"))))
-offers = spark.read.table("exmox.silver.nb_offers")
+offers = spark.read.table("exmox.silver.silver_offers")
 good = (good.join(F.broadcast(offers.select("offer_id", F.lit(True).alias("_known"))), "offer_id", "left")
     .withColumn("is_orphan_offer", F.col("offer_id").isNotNull() & F.col("_known").isNull()).drop("_known"))
-installs = spark.read.table("exmox.silver.nb_installs")
+installs = spark.read.table("exmox.silver.silver_installs")
 good = (good.join(F.broadcast(installs.select("user_id", "install_ts")), "user_id", "left")
     .withColumn("is_pre_install", F.coalesce(F.col("event_ts") < F.col("install_ts"), F.lit(False))).drop("install_ts"))
 good = good.withColumn("dq_flags", F.array_compact(F.array(
@@ -264,18 +251,14 @@ good = good.withColumn("dq_flags", F.array_compact(F.array(
     F.when(F.col("is_pre_install"), F.lit("pre_install")),
     F.when(F.col("is_orphan_offer"), F.lit("orphan_offer")))))
 silver_events = good.withColumn("_loaded_at", F.current_timestamp()).repartition(8)
-try:
-    if not silver_events.isEmpty():
-        validate_before_merge(silver_events, "exmox.silver.nb_events", "event_id")
-        # First arrival wins — insert only, never update existing events
-        merge_silver(silver_events, "exmox.silver.nb_events", "event_id", insert_only=True)
-        print("✓ silver_events (MERGE)", flush=True)
-    else:
-        print("[INFO] silver_events: No new data found — skipping MERGE.", flush=True)
-    update_watermark("exmox.bronze.nb_events")
-except Exception as _e:
-    print(f"[ERROR] silver_events failed: {_e}", flush=True)
-    raise
+if not silver_events.isEmpty():
+    validate_before_merge(silver_events, "exmox.silver.silver_events", "event_id")
+    # First arrival wins — insert only, never update existing events
+    merge_silver(silver_events, "exmox.silver.silver_events", "event_id", insert_only=True)
+    print("✓ silver_events (MERGE)", flush=True)
+else:
+    print("✓ silver_events (no new data)", flush=True)
+update_watermark("exmox.bronze.bronze_events")
 
 # COMMAND ----------
 
@@ -285,31 +268,27 @@ except Exception as _e:
 def _str(df): return df.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in df.columns])
 def _reject_rows(df, source, key_col, reason): return df.select(F.lit(source).alias("source"), F.col(key_col).cast("string").alias("reject_key"), F.lit(reason).alias("reject_reason"), F.to_json(F.struct(*[c for c in df.columns if not c.startswith("_")])).alias("raw_record"), F.col("_ingested_at"))
 
-raw_offers = spark.read.table("exmox.bronze.nb_offers")
+raw_offers = spark.read.table("exmox.bronze.bronze_offers")
 o = _str(raw_offers).withColumn("offer_id", F.trim("offer_id")).withColumn("payout_eur", F.trim("payout_eur").cast(DecimalType(18, 2)))
 rj_offers = _reject_rows(o.filter(F.col("offer_id").isNull() | F.col("payout_eur").isNull() | (F.col("payout_eur") < 0)), "offers", "offer_id", "null_id_or_bad_payout")
 
-raw_installs = spark.read.table("exmox.bronze.nb_installs")
+raw_installs = spark.read.table("exmox.bronze.bronze_installs")
 i = _str(raw_installs).withColumn("user_id", F.trim("user_id")).withColumn("install_ts", F.to_timestamp(F.trim("install_ts"))).withColumn("country", F.upper(F.trim("country"))).withColumn("device_model", F.trim("device_model")).withColumn("platform", F.when(F.lower(F.trim("device_model")).rlike("iphone|ipad|ipod"), F.lit("ios")).otherwise(F.lit("android")))
 rj_installs = _reject_rows(i.filter(F.col("user_id").isNull() | F.col("install_ts").isNull() | ~F.col("country").rlike("^[A-Z]{2}$")), "installs", "user_id", "bad_ts_or_country")
 
-raw_events = spark.read.table("exmox.bronze.nb_events")
+raw_events = spark.read.table("exmox.bronze.bronze_events")
 e = _str(raw_events).withColumn("event_id", F.trim("event_id")).withColumn("user_id", F.trim("user_id")).withColumn("event_name", F.lower(F.trim("event_name"))).withColumn("event_ts", F.to_timestamp(F.trim("event_ts"))).withColumn("ingest_ts", F.to_timestamp(F.trim("ingest_ts")))
 rj_events = _reject_rows(e.filter(F.col("event_id").isNull() | F.col("user_id").isNull() | F.col("event_ts").isNull() | F.col("ingest_ts").isNull() | ~F.col("event_name").isin(*STEPS)), "events", "event_id", "null_key_bad_ts_or_unknown_event")
 e_good = e.filter(F.col("event_id").isNotNull() & F.col("user_id").isNotNull() & F.col("event_ts").isNotNull() & F.col("ingest_ts").isNotNull() & F.col("event_name").isin(*STEPS))
 e_dups = e_good.withColumn("_rn", F.row_number().over(W.partitionBy("event_id").orderBy("ingest_ts", "_ingested_at"))).filter("_rn > 1").drop("_rn")
 rj_dups = _reject_rows(e_dups, "events", "event_id", "duplicate_event_id")
 
-try:
-    (rj_offers.unionByName(rj_installs).unionByName(rj_events).unionByName(rj_dups)
-     .coalesce(1)
-     .write.mode("overwrite").option("overwriteSchema", "true")
-     .saveAsTable("exmox.silver.nb_rejects"))
-    print("✓ silver_rejects", flush=True)
-    print("=== SILVER COMPLETE ===", flush=True)
-except Exception as _e:
-    print(f"[ERROR] silver_rejects failed: {_e}", flush=True)
-    raise
+(rj_offers.unionByName(rj_installs).unionByName(rj_events).unionByName(rj_dups)
+ .coalesce(1)
+ .write.mode("overwrite").option("overwriteSchema", "true")
+ .saveAsTable("exmox.silver.silver_rejects"))
+print("✓ silver_rejects", flush=True)
+print("=== SILVER COMPLETE ===", flush=True)
 
 # COMMAND ----------
 
@@ -331,24 +310,24 @@ CREATE TABLE IF NOT EXISTS exmox.silver.dq_issues (
 """)
 
 _dq_rules = [
-    ("nb_offers",  "offer_id unique",          "error", lambda df: df.groupBy("offer_id").count().filter("count > 1").count()),
-    ("nb_offers",  "offer_id not null",       "error", lambda df: df.filter("offer_id IS NULL").count()),
-    ("nb_offers",  "payout_eur > 0",           "error", lambda df: df.filter("payout_eur IS NULL OR payout_eur <= 0").count()),
-    ("nb_installs","user_id unique",           "error", lambda df: df.groupBy("user_id").count().filter("count > 1").count()),
-    ("nb_installs","user_id not null",         "error", lambda df: df.filter("user_id IS NULL").count()),
-    ("nb_installs","install_ts not null",     "error", lambda df: df.filter("install_ts IS NULL").count()),
-    ("nb_installs","platform in (android, ios)","error", lambda df: df.filter("platform NOT IN ('android', 'ios')").count()),
-    ("nb_installs","country ISO-2",            "error", lambda df: df.filter("NOT country RLIKE '^[A-Z]{2}$'").count()),
-    ("nb_events",  "event_id unique",          "error", lambda df: df.groupBy("event_id").count().filter("count > 1").count()),
-    ("nb_events",  "no null keys/ts",          "error", lambda df: df.filter("event_id IS NULL OR user_id IS NULL OR event_ts IS NULL").count()),
-    ("nb_events",  "event_name known",         "error", lambda df: df.filter(f"event_name NOT IN ({', '.join([repr(s) for s in STEPS])})").count()),
-    ("nb_user_profile","user_id unique",      "error", lambda df: df.groupBy("user_id").count().filter("count > 1").count()),
-    ("nb_user_profile","user_id not null",    "error", lambda df: df.filter("user_id IS NULL").count()),
+    ("silver_offers",  "offer_id unique",          "error", lambda df: df.groupBy("offer_id").count().filter("count > 1").count()),
+    ("silver_offers",  "offer_id not null",       "error", lambda df: df.filter("offer_id IS NULL").count()),
+    ("silver_offers",  "payout_eur > 0",           "error", lambda df: df.filter("payout_eur IS NULL OR payout_eur <= 0").count()),
+    ("silver_installs","user_id unique",           "error", lambda df: df.groupBy("user_id").count().filter("count > 1").count()),
+    ("silver_installs","user_id not null",         "error", lambda df: df.filter("user_id IS NULL").count()),
+    ("silver_installs","install_ts not null",     "error", lambda df: df.filter("install_ts IS NULL").count()),
+    ("silver_installs","platform in (android, ios)","error", lambda df: df.filter("platform NOT IN ('android', 'ios')").count()),
+    ("silver_installs","country ISO-2",            "error", lambda df: df.filter("NOT country RLIKE '^[A-Z]{2}$'").count()),
+    ("silver_events",  "event_id unique",          "error", lambda df: df.groupBy("event_id").count().filter("count > 1").count()),
+    ("silver_events",  "no null keys/ts",          "error", lambda df: df.filter("event_id IS NULL OR user_id IS NULL OR event_ts IS NULL").count()),
+    ("silver_events",  "event_name known",         "error", lambda df: df.filter(f"event_name NOT IN ({', '.join([repr(s) for s in STEPS])})").count()),
+    ("silver_user_profile","user_id unique",      "error", lambda df: df.groupBy("user_id").count().filter("count > 1").count()),
+    ("silver_user_profile","user_id not null",    "error", lambda df: df.filter("user_id IS NULL").count()),
     # ── Warning-severity observational rules (do not fail the pipeline) ──
-    ("nb_events",  "late arrivals (is_late)",        "warning", lambda df: df.filter(F.col("is_late") == True).count()),
-    ("nb_events",  "pre-install events",             "warning", lambda df: df.filter(F.col("is_pre_install") == True).count()),
-    ("nb_events",  "orphan offer_id",                "warning", lambda df: df.filter(F.col("is_orphan_offer") == True).count()),
-    ("nb_installs","users with no events",           "warning", lambda df: df.join(spark.read.table("exmox.silver.nb_events").select("user_id").distinct(), "user_id", "left_anti").count()),
+    ("silver_events",  "late arrivals (is_late)",        "warning", lambda df: df.filter(F.col("is_late") == True).count()),
+    ("silver_events",  "pre-install events",             "warning", lambda df: df.filter(F.col("is_pre_install") == True).count()),
+    ("silver_events",  "orphan offer_id",                "warning", lambda df: df.filter(F.col("is_orphan_offer") == True).count()),
+    ("silver_installs","users with no events",           "warning", lambda df: df.join(spark.read.table("exmox.silver.silver_events").select("user_id").distinct(), "user_id", "left_anti").count()),
 ]
 
 _results = []
@@ -373,7 +352,7 @@ _dq_metrics.write.mode("append").saveAsTable("exmox.silver.dq_metrics")
 
 # Log issues from rejects table
 try:
-    _issues = (spark.read.table("exmox.silver.nb_rejects")
+    _issues = (spark.read.table("exmox.silver.silver_rejects")
         .groupBy("source", "reject_reason").count()
         .withColumnRenamed("source", "source_table")
         .withColumnRenamed("reject_reason", "issue")
@@ -397,7 +376,7 @@ print("── DQ metrics & issues logged ──", flush=True)
 # ── EDA: Bronze Tables — Nulls, Duplicates, Distributions ──────────────────
 from pyspark.sql import functions as F
 
-for _tbl in ["nb_installs", "nb_events", "nb_offers", "nb_user_profile"]:
+for _tbl in ["bronze_installs", "bronze_events", "bronze_offers", "bronze_user_profile"]:
     _full = f"exmox.bronze.{_tbl}"
     _df = spark.read.table(_full)
     _total = _df.count()
@@ -426,7 +405,7 @@ for _tbl in ["nb_installs", "nb_events", "nb_offers", "nb_user_profile"]:
         print("  EMPTY STRINGS:")
         print("\n".join(_empty_cols))
 
-    if _tbl == "nb_installs":
+    if _tbl == "bronze_installs":
         _dups = _df.groupBy("user_id").count().filter("count > 1").count()
         print(f"  DUPLICATE user_ids: {_dups}")
         print("  PLATFORM distribution:")
@@ -440,7 +419,7 @@ for _tbl in ["nb_installs", "nb_events", "nb_offers", "nb_user_profile"]:
         _bad_country = _df.filter(~F.col("country").rlike("^[A-Z]{2}$")).count()
         print(f"  Non-ISO country codes: {_bad_country}")
 
-    elif _tbl == "nb_events":
+    elif _tbl == "bronze_events":
         _dups = _df.groupBy("event_id").count().filter("count > 1").count()
         print(f"  DUPLICATE event_ids: {_dups}")
         print("  EVENT_NAME distribution:")
@@ -449,13 +428,13 @@ for _tbl in ["nb_installs", "nb_events", "nb_offers", "nb_user_profile"]:
         _unknown = _df.filter(~F.col("event_name").isin("app_open", "offer_view", "offer_start", "goal_reached", "reward_paid")).count()
         print(f"  Unknown event_names: {_unknown}")
 
-    elif _tbl == "nb_offers":
+    elif _tbl == "bronze_offers":
         _dups = _df.groupBy("offer_id").count().filter("count > 1").count()
         print(f"  DUPLICATE offer_ids: {_dups}")
         _bad_payout = _df.filter((F.col("payout_eur").isNull()) | (F.col("payout_eur").cast("double") <= 0)).count()
         print(f"  Null or <=0 payout_eur: {_bad_payout}")
 
-    elif _tbl == "nb_user_profile":
+    elif _tbl == "bronze_user_profile":
         _dups = _df.groupBy("user_id").count().filter("count > 1").count()
         print(f"  DUPLICATE user_ids: {_dups}")
         print("  IS_PAYER distribution:")
@@ -463,19 +442,19 @@ for _tbl in ["nb_installs", "nb_events", "nb_offers", "nb_user_profile"]:
             print(f"    {r['is_payer']}: {r['count']:,}")
 
 # Cross-table consistency: events with user_id not in installs
-_events = spark.read.table("exmox.bronze.nb_events")
-_installs = spark.read.table("exmox.bronze.nb_installs")
+_events = spark.read.table("exmox.bronze.bronze_events")
+_installs = spark.read.table("exmox.bronze.bronze_installs")
 _orphan_users = _events.join(_installs.select("user_id"), "user_id", "left_anti").count()
 print(f"\n{'─' * 60}")
 print(f"CROSS-TABLE: Events with user_id NOT in installs: {_orphan_users:,}")
 
 # Events with offer_id not in offers
-_offers = spark.read.table("exmox.bronze.nb_offers")
+_offers = spark.read.table("exmox.bronze.bronze_offers")
 _orphan_offers = _events.filter(F.col("offer_id").isNotNull()).join(_offers.select("offer_id"), "offer_id", "left_anti").count()
 print(f"CROSS-TABLE: Events with offer_id NOT in offers: {_orphan_offers:,}")
 
 # Date ranges
-for _tbl, _ts in [("nb_installs", "install_ts"), ("nb_events", "event_ts"), ("nb_events", "ingest_ts")]:
+for _tbl, _ts in [("bronze_installs", "install_ts"), ("bronze_events", "event_ts"), ("bronze_events", "ingest_ts")]:
     _df = spark.read.table(f"exmox.bronze.{_tbl}")
     _min = _df.agg(F.min(_ts)).collect()[0][0]
     _max = _df.agg(F.max(_ts)).collect()[0][0]
@@ -487,7 +466,7 @@ print("\n=== EDA COMPLETE ===")
 
 # DBTITLE 1,EDA — ingest_ts Late Arrival Analysis
 # ── ingest_ts vs event_ts analysis: late-arriving data patterns ────────────────
-_e = spark.read.table("exmox.bronze.nb_events")
+_e = spark.read.table("exmox.bronze.bronze_events")
 
 # Cast timestamps
 _e = _e.withColumn("event_ts", F.to_timestamp("event_ts")).withColumn("ingest_ts", F.to_timestamp("ingest_ts"))
@@ -558,10 +537,10 @@ print("\n=== INGEST_TS ANALYSIS COMPLETE ===")
 # ── OPTIMIZE silver tables after each run ──────────────────────────────────
 print("  → OPTIMIZE silver ...", flush=True)
 for _t in [
-    "exmox.silver.nb_events",
-    "exmox.silver.nb_installs",
-    "exmox.silver.nb_offers",
-    "exmox.silver.nb_user_profile",
+    "exmox.silver.silver_events",
+    "exmox.silver.silver_installs",
+    "exmox.silver.silver_offers",
+    "exmox.silver.silver_user_profile",
 ]:
     _r = spark.sql(f"OPTIMIZE {_t}").collect()[0]["metrics"]
     print(f"    ✓ {_t}: +{_r['numFilesAdded']} / -{_r['numFilesRemoved']} files", flush=True)
