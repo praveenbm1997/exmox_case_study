@@ -173,7 +173,7 @@ raw = spark.read.table("exmox.bronze.bronze_installs")
 i = (raw.select([F.col(c).cast("string").alias(c) if not c.startswith("_") else F.col(c) for c in raw.columns])
     .withColumn("user_id", F.trim("user_id")).withColumn("install_ts", F.to_timestamp(F.trim("install_ts")))
     .withColumn("country", F.upper(F.trim("country"))).withColumn("device_model", F.trim("device_model"))
-    .withColumn("platform", F.when(F.lower(F.col("device_model")).contains("iphone"), F.lit("ios")).otherwise(F.lit("android")))
+    .withColumn("platform", F.when(F.lower(F.col("device_model")).rlike("iphone|ipad|ipod"), F.lit("ios")).otherwise(F.lit("android")))
     .withColumn("media_source", F.lower(F.trim("media_source")))
     .withColumn("campaign_id", F.nullif(F.trim("campaign_id"), F.lit(""))))
 bad = i.filter(F.col("user_id").isNull() | F.col("install_ts").isNull() | ~F.col("platform").isin("android", "ios") | ~F.col("country").rlike("^[A-Z]{2}$"))
@@ -273,7 +273,7 @@ o = _str(raw_offers).withColumn("offer_id", F.trim("offer_id")).withColumn("payo
 rj_offers = _reject_rows(o.filter(F.col("offer_id").isNull() | F.col("payout_eur").isNull() | (F.col("payout_eur") < 0)), "offers", "offer_id", "null_id_or_bad_payout")
 
 raw_installs = spark.read.table("exmox.bronze.bronze_installs")
-i = _str(raw_installs).withColumn("user_id", F.trim("user_id")).withColumn("install_ts", F.to_timestamp(F.trim("install_ts"))).withColumn("country", F.upper(F.trim("country"))).withColumn("device_model", F.trim("device_model")).withColumn("platform", F.when(F.lower(F.trim("device_model")).contains("iphone"), F.lit("ios")).otherwise(F.lit("android")))
+i = _str(raw_installs).withColumn("user_id", F.trim("user_id")).withColumn("install_ts", F.to_timestamp(F.trim("install_ts"))).withColumn("country", F.upper(F.trim("country"))).withColumn("device_model", F.trim("device_model")).withColumn("platform", F.when(F.lower(F.trim("device_model")).rlike("iphone|ipad|ipod"), F.lit("ios")).otherwise(F.lit("android")))
 rj_installs = _reject_rows(i.filter(F.col("user_id").isNull() | F.col("install_ts").isNull() | ~F.col("country").rlike("^[A-Z]{2}$")), "installs", "user_id", "bad_ts_or_country")
 
 raw_events = spark.read.table("exmox.bronze.bronze_events")
@@ -414,7 +414,7 @@ for _tbl in ["bronze_installs", "bronze_events", "bronze_offers", "bronze_user_p
         print("  DEVICE_MODEL distribution:")
         for r in _df.groupBy("device_model").count().orderBy("count", ascending=False).collect():
             print(f"    {r['device_model']}: {r['count']:,}")
-        _mismatch = _df.filter((F.lower(F.col("device_model")).contains("iphone") & (F.col("platform") != "ios")) | (~F.lower(F.col("device_model")).contains("iphone") & (F.col("platform") == "ios"))).count()
+        _mismatch = _df.filter((F.lower(F.col("device_model")).rlike("iphone|ipad|ipod") & (F.col("platform") != "ios")) | (~F.lower(F.col("device_model")).rlike("iphone|ipad|ipod") & (F.col("platform") == "ios"))).count()
         print(f"  PLATFORM vs DEVICE_MODEL mismatches: {_mismatch}")
         _bad_country = _df.filter(~F.col("country").rlike("^[A-Z]{2}$")).count()
         print(f"  Non-ISO country codes: {_bad_country}")
